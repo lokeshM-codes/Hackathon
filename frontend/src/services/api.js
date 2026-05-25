@@ -224,6 +224,47 @@ const handleFallback = (endpoint, error, params = {}) => {
       clientNewsSocial = JSON.parse(JSON.stringify(fallback.FALLBACK_NEWS_SOCIAL));
       return Promise.resolve({ data: { status: 'success', message: 'Demo reset locally.' } });
       
+    case 'live-stock': {
+      const symbol = params.symbol || 'AAPL';
+      const stock = clientStocks.find(s => s.symbol === symbol) || {
+        symbol,
+        company_name: `${symbol} Corporation`,
+        current_price: 150.0 + Math.random() * 5,
+        change_percent: -2.0 + Math.random() * 4,
+        volume: 1200000 + Math.floor(Math.random() * 500000),
+        high: 155.0,
+        low: 148.0,
+        open: 151.0,
+        previous_close: 149.0
+      };
+      const history = clientHistory[symbol] || fallback.FALLBACK_HISTORY[symbol] || [];
+      return Promise.resolve({
+        data: {
+          stock,
+          history,
+          prediction: {
+            symbol,
+            anomaly_score: 0.15 + Math.random() * 0.1,
+            anomaly_severity: "INFO",
+            anomaly_explanation: "Offline live market proxy active.",
+            prediction_probability: 0.12,
+            prediction_confidence: 0.90,
+            estimated_peak_time: "N/A",
+            mismatch_detected: false,
+            top_factors: [
+              { factor: "Offline Sandbox", impact: "Active", description: "Fallback offline connection simulating live quote ticks." }
+            ]
+          },
+          alerts: [],
+          sentiment: {
+            score: 0.05,
+            label: "neutral",
+            feeds: []
+          }
+        }
+      });
+    }
+      
     default:
       return Promise.reject(new Error(`Endpoint fallback not found: ${endpoint}`));
   }
@@ -261,3 +302,6 @@ export const triggerDemo = () =>
 
 export const resetDemo = () => 
   api.post('/reset-demo').then(res => { isOffline = false; return res; }).catch(err => handleFallback('reset-demo', err));
+
+export const fetchLiveStock = (symbol) => 
+  api.get(`/live-stock/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; });

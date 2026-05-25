@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Brain, Activity, Database } from 'lucide-react';
 
-export default function TopNavbar({ alertsCount, tradesCount, isDemoActive, demoStep, isOffline }) {
+export default function TopNavbar({ alertsCount, tradesCount, isDemoActive, demoStep, isOffline, isLiveMarket, onToggleLiveMarket }) {
   const [animatedTrades, setAnimatedTrades] = useState(tradesCount);
 
   useEffect(() => {
@@ -49,9 +49,9 @@ export default function TopNavbar({ alertsCount, tradesCount, isDemoActive, demo
       <div className="hidden lg:flex items-center gap-10">
         {/* Status dot */}
         <div className="flex items-center gap-2.5 bg-[#0D1426] border border-borderblue/80 px-3.5 py-1.8 rounded-md">
-          <div className={`w-3 h-3 rounded-full animate-pulse ${isOffline ? 'bg-amberwarn shadow-glowAmber' : 'bg-greenok shadow-glowGreen'}`} />
+          <div className={`w-3 h-3 rounded-full animate-pulse ${isOffline ? 'bg-amberwarn shadow-glowAmber' : (isLiveMarket ? 'bg-[#00f5ff] shadow-glowCyan' : 'bg-greenok shadow-glowGreen')}`} />
           <span className="text-[10px] font-mono font-extrabold text-white uppercase tracking-widest">
-            {isOffline ? 'Offline Mode (Local Fallback)' : 'Surveillance Feed: Connected'}
+            {isOffline ? 'Offline Mode (Local Fallback)' : (isLiveMarket ? '● LIVE MARKET CONNECTED' : 'Surveillance Feed: Connected')}
           </span>
         </div>
 
@@ -76,25 +76,56 @@ export default function TopNavbar({ alertsCount, tradesCount, isDemoActive, demo
       </div>
 
       {/* Tags and Badges */}
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-3.5 font-mono">
+        {/* Mode Selector Toggle */}
+        <div className="flex items-center bg-[#0a0f1d] border border-borderblue/85 rounded-md p-1 gap-1">
+          <button
+            onClick={() => onToggleLiveMarket(false)}
+            className={`px-3 py-1.5 text-[9px] font-black tracking-wider uppercase rounded transition-all ${
+              !isLiveMarket 
+                ? 'bg-amberwarn/20 text-[#FFB800] border border-amberwarn/40 shadow-glowAmber' 
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Demo Mode
+          </button>
+          <button
+            onClick={() => onToggleLiveMarket(true)}
+            className={`px-3 py-1.5 text-[9px] font-black tracking-wider uppercase rounded transition-all ${
+              isLiveMarket 
+                ? 'bg-[#00f5ff]/20 text-[#00f5ff] border border-[#00f5ff]/40 shadow-glowCyan animate-pulse' 
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Live Market
+          </button>
+        </div>
+
         <div className="flex items-center gap-2 bg-[#8B5CF6]/15 border border-[#8B5CF6]/45 px-3 py-1.5 rounded-md text-[#C084FC] shadow-sm">
           <Brain className="w-3.5 h-3.5" />
-          <span className="text-[9.5px] font-black font-mono tracking-widest uppercase">
+          <span className="text-[9.5px] font-black tracking-widest uppercase">
             AI Models Active
           </span>
         </div>
 
-        {isDemoActive ? (
+        {isLiveMarket ? (
+          <div className="flex items-center gap-2 bg-[#00f5ff]/15 border border-[#00f5ff]/45 px-3 py-1.5 rounded-md text-cyanneon shadow-sm animate-pulse">
+            <Database className="w-3.5 h-3.5" />
+            <span className="text-[9.5px] font-black tracking-widest uppercase">
+              LIVE MARKET
+            </span>
+          </div>
+        ) : isDemoActive ? (
           <div className="flex items-center gap-2 bg-[#FFB800]/15 border border-[#FFB800]/45 px-3 py-1.5 rounded-md text-[#FBBF24] animate-pulse shadow-sm">
             <Database className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '4s' }} />
-            <span className="text-[9.5px] font-black font-mono tracking-widest uppercase">
+            <span className="text-[9.5px] font-black tracking-widest uppercase">
               DEMO STATE {demoStep}/12
             </span>
           </div>
         ) : (
           <div className="flex items-center gap-2 bg-[#0D1426] border border-borderblue/80 px-3 py-1.5 rounded-md text-slate-300">
             <Database className="w-3.5 h-3.5" />
-            <span className="text-[9.5px] font-black font-mono tracking-widest uppercase">
+            <span className="text-[9.5px] font-black tracking-widest uppercase">
               Live Monitor
             </span>
           </div>

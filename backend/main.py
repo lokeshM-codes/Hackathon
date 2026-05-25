@@ -54,13 +54,14 @@ app.add_middleware(
 )
 
 # Include sub-routers
-from routes import stocks, alerts, analytics, graph, prediction
+from routes import stocks, alerts, analytics, graph, prediction, livestock
 
 app.include_router(stocks.router, prefix="/api/stocks", tags=["Stocks"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(graph.router, prefix="/api/graph", tags=["Insider Graph"])
 app.include_router(prediction.router, prefix="/api/prediction", tags=["ML Prediction"])
 app.include_router(analytics.router, prefix="/api", tags=["System Analytics"])
+app.include_router(livestock.router, prefix="/api/live-stock", tags=["Live Stock"])
 
 @app.post("/api/trigger-demo")
 def trigger_demo(db: Session = Depends(get_db)):

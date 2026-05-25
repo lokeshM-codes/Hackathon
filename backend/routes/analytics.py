@@ -32,6 +32,7 @@ def get_analytics(db: Session = Depends(get_db)):
         "detection_accuracy": 98.4,
         "false_positive_rate": 1.2,
         "investor_loss_prevented_inr": total_loss_prevented,
+        "current_demo_step": state.current_demo_step,
         "system_metrics": {
             "throughput": state.throughput_tps,
             "latency": state.latency_ms,
