@@ -73,17 +73,24 @@ export default function Dashboard() {
             setChartError(null);
             const stockData = stockRes.data;
             const predictionPayload = predRes.data;
-            setFallbackWarning(stockData.fallback_warning);
-            setActiveStockDetails({ stock: stockData.stock, history: stockData.history });
+            const normalizedHistory = Array.isArray(stockData.history)
+              ? stockData.history.map(h => ({
+                  ...h,
+                  timestamp: h.timestamp || h.time || h.display_time || new Date().toISOString(),
+                  time: h.time || h.display_time || h.timestamp || new Date().toISOString()
+                }))
+              : [];
+            setFallbackWarning(stockData.fallback_warning || stockData.fallbackWarning || null);
+            setActiveStockDetails({ stock: stockData.stock || {}, history: normalizedHistory });
             setPredictionData(predictionPayload);
-            setAlerts(stockData.alerts);
-            setSentimentData(stockData.sentiment);
+            setAlerts(stockData.alerts || []);
+            setSentimentData(stockData.sentiment || {});
             setStocks(prev => {
-              const exists = prev.some(s => s.symbol === stockData.stock.symbol);
+              const exists = prev.some(s => s.symbol === stockData.stock?.symbol);
               if (exists) {
                 return prev.map(s => s.symbol === stockData.stock.symbol ? stockData.stock : s);
               }
-              return [...prev, stockData.stock];
+              return stockData.stock ? [...prev, stockData.stock] : prev;
             });
           })
           .catch(err => {
