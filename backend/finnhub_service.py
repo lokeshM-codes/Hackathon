@@ -29,36 +29,57 @@ def get_finnhub_quote(symbol: str):
     return data
 
 
-def get_finnhub_candles(symbol: str, resolution: str = "1", minutes: int = 120):
+FINNHUB_RESOLUTIONS = ["5", "15", "30", "60", "D"]
+
+
+def get_finnhub_candles(symbol: str, resolution: str = "5", minutes: int = 780):
     api_key = _get_api_key()
     to_ts = int(time.time())
     from_ts = max(0, to_ts - (minutes * 60))
     url = f"{FINNHUB_BASE_URL}/stock/candle"
-    params = {
-        "symbol": symbol,
-        "resolution": resolution,
-        "from": from_ts,
-        "to": to_ts,
-        "token": api_key
-    }
-    response = requests.get(url, params=params, timeout=10)
-    if response.status_code != 200:
-        raise ValueError(f"Finnhub candles returned HTTP {response.status_code}")
-    data = response.json()
-    if data.get("s") != "ok":
-        raise ValueError(f"Finnhub candles error: {data.get('s', 'unknown')}")
 
-    candles = []
-    for i in range(len(data.get("t", []))):
-        candles.append({
-            "timestamp": datetime.datetime.utcfromtimestamp(data["t"][i]).isoformat(),
-            "open": data["o"][i],
-            "high": data["h"][i],
-            "low": data["l"][i],
-            "close": data["c"][i],
-            "volume": data["v"][i]
-        })
-    return candles
+    resolutions_to_try = [resolution] + [r for r in FINNHUB_RESOLUTIONS if r != resolution]
+
+    last_error = None
+    for res in resolutions_to_try:
+        try:
+            params = {
+                "symbol": symbol,
+                "resolution": res,
+                "from": from_ts,
+                "to": to_ts,
+                "token": api_key
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code != 200:
+                last_error = ValueError(f"Finnhub candles returned HTTP {response.status_code} for resolution {res}")
+                continue
+            data = response.json()
+            if data.get("s") != "ok":
+                last_error = ValueError(f"Finnhub candles error: {data.get('s', 'unknown')} for resolution {res}")
+                continue
+
+            raw_timestamps = data.get("t", [])
+            if len(raw_timestamps) == 0:
+                last_error = ValueError(f"Finnhub returned empty candle array for resolution {res}")
+                continue
+
+            candles = []
+            for i in range(len(raw_timestamps)):
+                candles.append({
+                    "timestamp": datetime.datetime.utcfromtimestamp(raw_timestamps[i]).isoformat(),
+                    "open": data["o"][i],
+                    "high": data["h"][i],
+                    "low": data["l"][i],
+                    "close": data["c"][i],
+                    "volume": data["v"][i]
+                })
+            return candles
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise last_error or ValueError(f"All Finnhub resolutions failed for {symbol}")
 
 
 def get_finnhub_company_news(symbol: str):

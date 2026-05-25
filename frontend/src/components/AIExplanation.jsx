@@ -7,7 +7,7 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
   const confidence = predictionData.prediction_confidence || 0.0;
   const symbol = predictionData.symbol || 'YES_BANK';
 
-  const isAnomalous = symbol === 'YES_BANK' || (symbol === 'IRFC_PENNY' && demoStep >= 4);
+  const isAnomalous = predictionData.anomaly_severity === "CRITICAL" || predictionData.anomaly_severity === "WARNING" || symbol === 'YES_BANK' || (symbol === 'IRFC_PENNY' && demoStep >= 4);
 
   // Segmented Bar Renderer
   const renderSegmentedBar = (value, colorClass, maxSegments = 10) => {
@@ -30,6 +30,9 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
 
   // Natural Language Explainer ("Why AI Flagged This")
   const getNaturalExplanation = () => {
+    if (predictionData.anomaly_explanation) {
+      return predictionData.anomaly_explanation;
+    }
     if (symbol === 'YES_BANK') {
       return `Price increased 35.0% with a 50x volume spike while sentiment turned sharply negative (-0.78) and connected accounts executed synchronized orders.`;
     } else if (symbol === 'IRFC_PENNY') {
@@ -48,6 +51,19 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
 
   // Model Consensus Indicators
   const getModelAgreements = () => {
+    if (predictionData.anomaly_explanation && symbol !== 'YES_BANK' && symbol !== 'IRFC_PENNY') {
+      const isCritical = predictionData.anomaly_severity === 'CRITICAL';
+      const isWarning = predictionData.anomaly_severity === 'WARNING';
+      const hasMismatch = predictionData.mismatch_detected;
+      const isPumpDump = predictionData.prediction_probability >= 0.70;
+      
+      return [
+        { model: "Isolation Forest", status: (isCritical || isWarning) ? "FLAG" : "NORMAL", state: (isCritical || isWarning) ? "danger" : "safe" },
+        { model: "Random Forest", status: isPumpDump ? "FLAG" : "NORMAL", state: isPumpDump ? "danger" : "safe" },
+        { model: "LSTM Sentiment", status: hasMismatch ? "MISMATCH" : "ALIGNED", state: hasMismatch ? "danger" : "safe" },
+        { model: "NetworkX Linker", status: isCritical ? "CLUSTER" : "CLEAR", state: isCritical ? "danger" : "safe" }
+      ];
+    }
     if (symbol === 'YES_BANK') {
       return [
         { model: "Isolation Forest", status: "FLAG", state: "danger" },
@@ -73,6 +89,21 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
 
   // SHAP Feature Contribution values (positive/negative impact weight)
   const getShapFeatures = () => {
+    if (predictionData.top_factors && predictionData.top_factors.length > 0 && symbol !== 'YES_BANK' && symbol !== 'IRFC_PENNY') {
+      return predictionData.top_factors.map((f) => {
+        const isPos = !f.impact.includes('-') && !f.impact.toLowerCase().includes('stable') && !f.impact.toLowerCase().includes('neutral');
+        let val = 15;
+        if (f.factor.toLowerCase().includes('volume')) val = 38;
+        else if (f.factor.toLowerCase().includes('price') || f.factor.toLowerCase().includes('momentum')) val = 25;
+        else if (f.factor.toLowerCase().includes('sentiment')) val = 18;
+        
+        return {
+          name: f.factor,
+          value: isPos ? val : -val,
+          type: isPos ? 'positive' : 'negative'
+        };
+      });
+    }
     if (symbol === 'YES_BANK') {
       return [
         { name: "Volume Spike (50x)", value: 45, type: "positive" },
@@ -157,11 +188,11 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
           </div>
           <div className="flex items-center justify-between">
             {renderSegmentedBar(
-              isAnomalous ? (symbol === 'YES_BANK' ? 0.94 : (demoStep >= 10 ? 0.96 : (demoStep >= 7 ? 0.72 : 0.55))) : 0.12, 
+              anomalyScore, 
               isAnomalous ? 'bg-redalert shadow-glowRed' : 'bg-greenok shadow-glowGreen'
             )}
             <span className={`font-black ml-1.5 text-[10px] ${isAnomalous ? 'text-redalert' : 'text-greenok'}`}>
-              {isAnomalous ? (symbol === 'YES_BANK' ? '94%' : (demoStep >= 10 ? '96%' : (demoStep >= 7 ? '72%' : '55%'))) : '12%'}
+              {(anomalyScore * 100).toFixed(0)}%
             </span>
           </div>
         </div>
@@ -173,11 +204,11 @@ export default function AIExplanation({ predictionData, isDemoActive, demoStep }
           </div>
           <div className="flex items-center justify-between">
             {renderSegmentedBar(
-              isAnomalous ? (symbol === 'YES_BANK' ? 0.92 : (demoStep >= 10 ? 0.96 : (demoStep >= 7 ? 0.81 : 0.65))) : 0.90, 
+              confidence, 
               'bg-cyanneon shadow-glowCyan'
             )}
             <span className="font-black text-cyanneon ml-1.5 text-[10px]">
-              {isAnomalous ? (symbol === 'YES_BANK' ? '92%' : (demoStep >= 10 ? '96%' : (demoStep >= 7 ? '81%' : '65%'))) : '90%'}
+              {(confidence * 100).toFixed(0)}%
             </span>
           </div>
         </div>

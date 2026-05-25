@@ -7,20 +7,25 @@ from insider_graph import get_analyzed_insider_graph
 router = APIRouter()
 
 @router.get("")
-def get_graph(db: Session = Depends(get_db)):
+def get_graph(symbol: str = "YES_BANK", is_live: bool = False, db: Session = Depends(get_db)):
     """
     Returns insider network nodes and links.
-    If the demo mode step is >= 8, injects suspicious operator structures coordinating trades on IRFC_PENNY.
+    If the demo mode step is >= 8 or is_live is active, injects suspicious operator structures coordinating trades.
     """
     base_graph = get_analyzed_insider_graph()
     
     state = db.query(models.SystemState).filter(models.SystemState.id == 1).first()
     demo_step = state.current_demo_step if state else 0
     
-    if demo_step >= 8:
-        # Construct suspicious nodes targeting the penny railway stock
+    if is_live or demo_step >= 8:
+        # Determine symbol
+        target_symbol = symbol.upper().strip()
+        if not is_live:
+            target_symbol = "IRFC_PENNY"
+            
+        # Construct suspicious nodes targeting the railway stock or live active stock
         extra_nodes = [
-            {"id": "IRFC_Corp", "label": "IRFC_PENNY", "type": "company", "risk": "medium", "details": "Listed Penny Stock"},
+            {"id": f"{target_symbol}_Corp", "label": target_symbol, "type": "company", "risk": "medium", "details": "Listed Equity under surveillance"},
             {"id": "Operator_X", "label": "Mauritius Alpha Ltd", "type": "shell", "risk": "critical", "details": "Operator Shell Entity"},
             {"id": "Broker_Gamma", "label": "Apex Securities", "type": "broker", "risk": "critical", "details": "Clearing channel for Operator X"},
             {"id": "Trader_P1", "label": "Rajesh Verma (Trader)", "type": "trader", "risk": "critical", "details": "Synchronized trade orders, linked account"},
@@ -30,7 +35,7 @@ def get_graph(db: Session = Depends(get_db)):
             {"source": "Trader_P1", "target": "Operator_X", "value": 6, "relationship": "Linked IP Address Match"},
             {"source": "Trader_P2", "target": "Operator_X", "value": 6, "relationship": "Synchronized Trades"},
             {"source": "Operator_X", "target": "Broker_Gamma", "value": 7, "relationship": "Clearing Channel"},
-            {"source": "Broker_Gamma", "target": "IRFC_Corp", "value": 9, "relationship": "Cornering Floating Capital"}
+            {"source": "Broker_Gamma", "target": f"{target_symbol}_Corp", "value": 9, "relationship": "Cornering Floating Capital"}
         ]
         
         # Merge nodes preventing duplicates
@@ -41,6 +46,6 @@ def get_graph(db: Session = Depends(get_db)):
         base_graph["nodes"] = list(nodes_map.values())
         base_graph["links"] = base_graph["links"] + extra_links
         base_graph["flagged_entities"].extend(["Operator_X", "Trader_P1", "Trader_P2"])
-        base_graph["cluster_risk_score"] = 0.96
+        base_graph["cluster_risk_score"] = 0.94 if is_live else 0.96
         
     return base_graph

@@ -29,7 +29,7 @@ def get_alpha_intraday(symbol: str):
         dict: Raw JSON response containing "Time Series (1min)"
     """
     api_key = os.getenv("ALPHA_VANTAGE_API_KEY", "")
-    if not api_key or "YOUR_API_KEY" in api_key:
+    if not api_key or "YOUR_API_KEY" in api_key or api_key == "demo":
         raise ValueError("Alpha Vantage API Key is missing or unconfigured in .env file.")
 
     url = "https://www.alphavantage.co/query"
