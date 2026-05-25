@@ -263,24 +263,71 @@ export default function DemoControls({ currentStep, onTriggerDemo, onResetDemo }
         </div>
       </div>
 
-      {/* Dynamic Status Display & Blinking Target */}
-      <div className="flex-shrink-0 bg-black/35 border border-borderblue/55 rounded-md p-3 mb-4 font-mono text-[9px] relative overflow-hidden">
-        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${currentStep >= 10 ? 'bg-redalert' : 'bg-cyanneon'}`} />
-            <span className={`relative inline-flex rounded-full h-2 w-2 ${currentStep >= 10 ? 'bg-redalert' : 'bg-cyanneon'}`} />
+      {/* 12 Investigation Phases List */}
+      <div className="flex-shrink-0 bg-black/40 border border-borderblue/55 rounded-md p-3 mb-4 font-mono text-[9px] relative overflow-hidden">
+        <div className="text-slate-400 font-bold mb-2 uppercase tracking-wider border-b border-borderblue/30 pb-1 flex items-center justify-between">
+          <span>Surveillance Phases</span>
+          <span className="text-[7.5px] text-cyanneon font-black animate-pulse flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyanneon animate-ping" />
+            LIVE SCAN
           </span>
         </div>
-        
-        <div className="text-slate-400 font-bold mb-0.5">CURRENT INVESTIGATION PHASE:</div>
-        <div className="text-[11px] font-black tracking-wide text-cyanneon uppercase flex items-center gap-1">
-          <Activity className="w-3.5 h-3.5 animate-pulse text-cyanneon" />
-          <span>{activePhaseName}</span>
-        </div>
-        <div className="text-[7.5px] text-slate-400 mt-1 uppercase font-bold">
-          Surveillance Engine: <span className="text-white">IRFC_PENNY</span>
+        <div className="space-y-1 max-h-[145px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-borderblue">
+          {DEMO_PHASES.map((phase, idx) => {
+            const stepNum = idx + 1;
+            const isActive = currentStep === stepNum;
+            const isCompleted = currentStep > stepNum;
+            const isPending = currentStep < stepNum;
+            
+            let statusColor = "border-slate-800/40 text-slate-500 bg-transparent";
+            let dotColor = "bg-slate-850 border border-slate-700";
+            if (isActive) {
+              statusColor = currentStep >= 10 
+                ? "border-redalert bg-redalert/10 text-white shadow-glowRed scale-[1.01] font-black" 
+                : "border-cyanneon bg-cyanneon/10 text-white shadow-glowCyan scale-[1.01] font-black";
+              dotColor = currentStep >= 10 ? "bg-redalert animate-pulse" : "bg-cyanneon animate-pulse";
+            } else if (isCompleted) {
+              statusColor = "border-greenok/30 bg-greenok/5 text-greenok/80 font-semibold";
+              dotColor = "bg-greenok shadow-glowGreen";
+            }
+
+            return (
+              <div 
+                key={phase} 
+                className={`flex items-center justify-between p-1 px-2 rounded-[3px] border transition-all duration-300 ${statusColor}`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[7px] font-mono px-1 rounded-sm ${
+                    isActive 
+                      ? (currentStep >= 10 ? 'bg-redalert text-black font-black' : 'bg-cyanneon text-black font-black')
+                      : isCompleted
+                        ? 'bg-greenok/20 text-greenok font-bold'
+                        : 'bg-slate-850 text-slate-500'
+                  }`}>
+                    {stepNum.toString().padStart(2, '0')}
+                  </span>
+                  <span className="text-[8.5px] tracking-wide truncate max-w-[170px]">
+                    {phase}
+                  </span>
+                </div>
+                
+                {/* Status dot */}
+                <div className="flex items-center">
+                  {isActive ? (
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${currentStep >= 10 ? 'bg-redalert' : 'bg-cyanneon'}`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${currentStep >= 10 ? 'bg-redalert' : 'bg-cyanneon'}`} />
+                    </span>
+                  ) : (
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
+
 
       {/* Live Changing Incident Score HUD */}
       <div className="flex-shrink-0 grid grid-cols-2 gap-2 mb-4">
@@ -364,8 +411,9 @@ export default function DemoControls({ currentStep, onTriggerDemo, onResetDemo }
         {/* Scrollable logs list limited to remaining flex height */}
         <div 
           ref={scrollContainerRef}
-          className="flex-grow overflow-y-auto space-y-1.5 pr-1 font-mono text-[8px] scrollbar-thin scrollbar-thumb-borderblue min-h-0"
+          className="flex-grow overflow-y-auto max-h-[190px] h-[190px] space-y-1.5 pr-1 font-mono text-[8px] scrollbar-thin scrollbar-thumb-borderblue min-h-0"
         >
+
           {localLogs.map((log, i) => {
             const isLast = i === localLogs.length - 1;
             const isRecent = i >= localLogs.length - 3;

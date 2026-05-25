@@ -5,7 +5,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 1500, // Swift timeout to ensure instantaneous fallback if server is down
+  timeout: 10000, // Increased timeout to ensure Alpha Vantage API resolves before client aborts
 });
 
 let isOffline = false;
@@ -161,6 +161,7 @@ const handleFallback = (endpoint, error, params = {}) => {
             prediction_probability: clientDemoStep >= 10 ? 0.96 : (clientDemoStep >= 7 ? 0.82 : 0.65),
             prediction_confidence: clientDemoStep >= 10 ? 0.96 : (clientDemoStep >= 7 ? 0.92 : 0.84),
             estimated_peak_time: clientDemoStep >= 10 ? "3 mins" : "8 mins",
+            predicted_price: clientDemoStep >= 10 ? 11.25 : 8.32,
             mismatch_detected: clientDemoStep >= 7,
             top_factors: [
               { factor: "Volume Surge", impact: clientDemoStep >= 10 ? "High (38x surge)" : "High (15x surge)", description: "Sudden buying volume suggesting float cornering operations." },
@@ -172,6 +173,65 @@ const handleFallback = (endpoint, error, params = {}) => {
         });
       }
       return Promise.resolve({ data: fallback.FALLBACK_PREDICTIONS[symbol] || fallback.FALLBACK_PREDICTIONS["IRFC_PENNY"] });
+    }
+    case 'live-prediction': {
+      const symbol = params.symbol || 'AAPL';
+      return Promise.resolve({
+        data: {
+          symbol,
+          anomaly_score: 0.12 + Math.random() * 0.08,
+          anomaly_severity: "INFO",
+          anomaly_explanation: "Offline live prediction proxy active.",
+          prediction_probability: 0.18,
+          prediction_confidence: 0.84,
+          estimated_peak_time: "N/A",
+          predicted_price: 150.5 + Math.random() * 1.8,
+          mismatch_detected: false,
+          top_factors: [
+            { factor: "Offline Sandbox", impact: "Active", description: "Fallback live prediction simulating real-time model output." }
+          ]
+        }
+      });
+    }
+    case 'live-stock': {
+      const symbol = params.symbol || 'AAPL';
+      const stock = clientStocks.find(s => s.symbol === symbol) || {
+        symbol,
+        company_name: `${symbol} Corporation`,
+        current_price: 150.0 + Math.random() * 5,
+        change_percent: -2.0 + Math.random() * 4,
+        volume: 1200000 + Math.floor(Math.random() * 500000),
+        high: 155.0,
+        low: 148.0,
+        open: 151.0,
+        previous_close: 149.0
+      };
+      const history = clientHistory[symbol] || fallback.FALLBACK_HISTORY[symbol] || [];
+      return Promise.resolve({
+        data: {
+          stock,
+          history,
+          prediction: {
+            symbol,
+            anomaly_score: 0.15 + Math.random() * 0.1,
+            anomaly_severity: "INFO",
+            anomaly_explanation: "Offline live market proxy active.",
+            prediction_probability: 0.12,
+            prediction_confidence: 0.90,
+            estimated_peak_time: "N/A",
+            mismatch_detected: false,
+            top_factors: [
+              { factor: "Offline Sandbox", impact: "Active", description: "Fallback offline connection simulating live quote ticks." }
+            ]
+          },
+          alerts: [],
+          sentiment: {
+            score: 0.05,
+            label: "neutral",
+            feeds: []
+          }
+        }
+      });
     }
       
     case 'analytics': {
@@ -224,46 +284,17 @@ const handleFallback = (endpoint, error, params = {}) => {
       clientNewsSocial = JSON.parse(JSON.stringify(fallback.FALLBACK_NEWS_SOCIAL));
       return Promise.resolve({ data: { status: 'success', message: 'Demo reset locally.' } });
       
-    case 'live-stock': {
-      const symbol = params.symbol || 'AAPL';
-      const stock = clientStocks.find(s => s.symbol === symbol) || {
-        symbol,
-        company_name: `${symbol} Corporation`,
-        current_price: 150.0 + Math.random() * 5,
-        change_percent: -2.0 + Math.random() * 4,
-        volume: 1200000 + Math.floor(Math.random() * 500000),
-        high: 155.0,
-        low: 148.0,
-        open: 151.0,
-        previous_close: 149.0
-      };
-      const history = clientHistory[symbol] || fallback.FALLBACK_HISTORY[symbol] || [];
-      return Promise.resolve({
-        data: {
-          stock,
-          history,
-          prediction: {
-            symbol,
-            anomaly_score: 0.15 + Math.random() * 0.1,
-            anomaly_severity: "INFO",
-            anomaly_explanation: "Offline live market proxy active.",
-            prediction_probability: 0.12,
-            prediction_confidence: 0.90,
-            estimated_peak_time: "N/A",
-            mismatch_detected: false,
-            top_factors: [
-              { factor: "Offline Sandbox", impact: "Active", description: "Fallback offline connection simulating live quote ticks." }
-            ]
-          },
-          alerts: [],
-          sentiment: {
-            score: 0.05,
-            label: "neutral",
-            feeds: []
-          }
-        }
-      });
+    case 'set-demo-step': {
+      const step = params.step || 0;
+      clientDemoStep = step;
+      const res = fallback.getLocalDemoStepData(step, clientStocks, clientAlerts, clientHistory, clientNewsSocial);
+      clientStocks = res.stocks;
+      clientAlerts = res.alerts;
+      clientHistory = res.history;
+      clientNewsSocial = res.newsSocial;
+      return Promise.resolve({ data: { status: 'success', current_step: step } });
     }
+
       
     default:
       return Promise.reject(new Error(`Endpoint fallback not found: ${endpoint}`));
@@ -297,11 +328,18 @@ export const fetchAnalytics = () =>
 export const fetchSocial = (symbol) => 
   api.get(`/social/${symbol}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('social', err, { symbol }));
 
+export const fetchLivePrediction = (symbol) => 
+  api.get(`/live-stock/prediction/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('live-prediction', err, { symbol }));
+
 export const triggerDemo = () => 
   api.post('/trigger-demo').then(res => { isOffline = false; return res; }).catch(err => handleFallback('trigger-demo', err));
 
 export const resetDemo = () => 
   api.post('/reset-demo').then(res => { isOffline = false; return res; }).catch(err => handleFallback('reset-demo', err));
 
+export const setDemoStep = (step) =>
+  api.post(`/set-demo-step/${step}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('set-demo-step', err, { step }));
+
 export const fetchLiveStock = (symbol) => 
-  api.get(`/live-stock/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; });
+  api.get(`/live-stock/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('live-stock', err, { symbol }));
+

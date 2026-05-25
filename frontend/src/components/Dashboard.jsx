@@ -63,23 +63,27 @@ export default function Dashboard() {
         if (activeStockDetails.history.length === 0 || activeStockDetails.stock.symbol !== selectedSymbol) {
           setIsChartLoading(true);
         }
-        api.fetchLiveStock(selectedSymbol)
-          .then(res => {
+        Promise.all([
+          api.fetchLiveStock(selectedSymbol),
+          api.fetchLivePrediction(selectedSymbol)
+        ])
+          .then(([stockRes, predRes]) => {
             setIsLoadingLive(false);
             setIsChartLoading(false);
             setChartError(null);
-            const data = res.data;
-            setFallbackWarning(data.fallback_warning);
-            setActiveStockDetails({ stock: data.stock, history: data.history });
-            setPredictionData(data.prediction);
-            setAlerts(data.alerts);
-            setSentimentData(data.sentiment);
+            const stockData = stockRes.data;
+            const predictionPayload = predRes.data;
+            setFallbackWarning(stockData.fallback_warning);
+            setActiveStockDetails({ stock: stockData.stock, history: stockData.history });
+            setPredictionData(predictionPayload);
+            setAlerts(stockData.alerts);
+            setSentimentData(stockData.sentiment);
             setStocks(prev => {
-              const exists = prev.some(s => s.symbol === data.stock.symbol);
+              const exists = prev.some(s => s.symbol === stockData.stock.symbol);
               if (exists) {
-                return prev.map(s => s.symbol === data.stock.symbol ? data.stock : s);
+                return prev.map(s => s.symbol === stockData.stock.symbol ? stockData.stock : s);
               }
-              return [...prev, data.stock];
+              return [...prev, stockData.stock];
             });
           })
           .catch(err => {
@@ -90,7 +94,7 @@ export default function Dashboard() {
             setChartError(errMsg);
             setIsLiveMarket(false);
             setSelectedSymbol('YES_BANK');
-            alert(`Live Market Connection Failed: ${errMsg}. Reverting to Demo Mode.`);
+            alert("Live market connection failed. Reverting to demo mode.");
           });
 
         // Heatmap & Graph can still query normally in background
@@ -123,8 +127,13 @@ export default function Dashboard() {
           } else {
             setIsOffline(false);
             const serverStep = res.data.current_demo_step || 0;
-            setDemoStep(serverStep);
-            setIsDemoActive(serverStep > 0);
+            if (serverStep === 0) {
+              setDemoStep(0);
+              setIsDemoActive(false);
+            } else if (!isDemoActive) {
+              setDemoStep(serverStep);
+              setIsDemoActive(true);
+            }
           }
         });
 
@@ -136,9 +145,37 @@ export default function Dashboard() {
     };
 
     loadData();
-    const interval = setInterval(loadData, 3000);
+    const interval = setInterval(loadData, isLiveMarket ? 5000 : 3000);
     return () => clearInterval(interval);
-  }, [selectedSymbol, isLiveMarket]);
+  }, [selectedSymbol, isLiveMarket, isDemoActive]);
+
+  // Demo auto-progression loop (every 4 seconds when demo is active and online)
+  useEffect(() => {
+    if (!isDemoActive || isLiveMarket || isOffline) return;
+
+    const interval = setInterval(() => {
+      if (demoStep < 12) {
+        const nextStep = demoStep + 1;
+        setDemoStep(nextStep);
+        api.setDemoStep(nextStep).then(() => {
+          // Trigger a quick load of data to update the UI immediately
+          api.fetchStockDetails('IRFC_PENNY').then(res => setActiveStockDetails(res.data));
+          api.fetchAlerts().then(res => setAlerts(res.data));
+          api.fetchAnalytics().then(res => setAnalytics(res.data));
+          api.fetchSentiment('IRFC_PENNY').then(res => setSentimentData(res.data));
+          api.fetchPrediction('IRFC_PENNY').then(res => setPredictionData(res.data));
+          api.fetchSocial('IRFC_PENNY').then(res => setSocialData(res.data));
+          api.fetchGraph().then(res => setGraphData(res.data));
+          api.fetchHeatmap().then(res => setHeatmapData(res.data));
+        }).catch(err => {
+          console.error("Failed to advance demo step on backend:", err);
+        });
+      }
+    }, 4000); // Ticks every 4 seconds for a cinematic surveillance flow
+
+    return () => clearInterval(interval);
+  }, [isDemoActive, demoStep, isLiveMarket, isOffline]);
+
   const handleSelectStock = (symbol) => {
     setSelectedSymbol(symbol);
     if (isLiveMarket) {
@@ -271,6 +308,8 @@ export default function Dashboard() {
               symbol={selectedSymbol}
               predictionData={predictionData}
               systemMetrics={analytics.system_metrics || {}}
+              alertsCount={alerts.length}
+              stockDetails={activeStockDetails.stock}
             />
           ) : (
             <DemoControls 
@@ -294,7 +333,7 @@ export default function Dashboard() {
           <div className="p-8 border border-cyanneon/50 bg-[#060a16] rounded-md shadow-glowCyan flex flex-col items-center text-center gap-4">
             <Activity className="w-12 h-12 text-cyanneon animate-spin" />
             <div className="text-sm font-black text-white uppercase tracking-widest heading-syne animate-pulse">
-              Connecting to live exchange...
+              CONNECTING TO LIVE EXCHANGE...
             </div>
             <div className="text-[10px] text-slate-400 max-w-[280px] leading-relaxed">
               Establishing encrypted feed tunnel. Authenticating API keys and scanning target liquidity order boards...

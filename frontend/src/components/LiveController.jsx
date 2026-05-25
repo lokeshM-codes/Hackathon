@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Database, ShieldAlert, Cpu, Activity, Server, Clock } from 'lucide-react';
+import { Terminal, Database, Activity, Server, Clock, ShieldAlert, TrendingUp } from 'lucide-react';
 
-export default function LiveController({ symbol, predictionData, systemMetrics }) {
+export default function LiveController({ symbol, predictionData, systemMetrics, alertsCount = 0, stockDetails = {} }) {
   const scrollContainerRef = useRef(null);
   const [localLogs, setLocalLogs] = useState([]);
 
@@ -10,12 +10,16 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
   const confidence = predictionData?.prediction_confidence || 0.90;
   const severity = predictionData?.anomaly_severity || "INFO";
 
+  // Compute market trend from stock details change percent
+  const changePercent = stockDetails?.change_percent || 0.0;
+  const trend = changePercent > 0.05 ? "BULLISH" : (changePercent < -0.05 ? "BEARISH" : "STABLE");
+  const trendColor = trend === "BULLISH" ? "text-greenok" : (trend === "BEARISH" ? "text-redalert" : "text-cyanneon");
+
   // Telemetry heartbeat interval ticker for live market quotes
   useEffect(() => {
-    // Initialize log on mount/reset
     const time = new Date().toTimeString().split(' ')[0];
     setLocalLogs([
-      { time, component: "GATEWAY", msg: `Live connection established. Surveillance tunnel active for ${symbol}.`, type: "info" }
+      { time, component: "GATEWAY", msg: `Live Alpha Vantage feed established for ${symbol}.`, type: "info" }
     ]);
   }, [symbol]);
 
@@ -24,19 +28,19 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
     const interval = setInterval(() => {
       const time = new Date().toTimeString().split(' ')[0];
       const telemetries = [
-        { component: "LIVE_FEED", msg: `Received exchange quote tick for ${symbol}. Price: ₹${predictionData?.anomaly_explanation ? "updated" : "synced"}.`, type: "info" },
-        { component: "SEC_ALGO", msg: `Isolation Forest evaluation score: ${(anomalyScore * 100).toFixed(0)}% (${severity}).`, type: anomalyScore >= 0.70 ? "warn" : "info" },
+        { component: "LIVE_FEED", msg: `Received Alpha Vantage tick for ${symbol}. Change: ${changePercent.toFixed(2)}%.`, type: "info" },
+        { component: "SEC_ALGO", msg: `Isolation Forest anomaly score evaluated: ${(anomalyScore * 100).toFixed(0)}% (${severity}).`, type: anomalyScore >= 0.70 ? "warn" : "info" },
         { component: "RANDOM_FOREST", msg: `Random Forest classification probability: ${(probability * 100).toFixed(0)}%.`, type: probability >= 0.70 ? "danger" : "info" },
-        { component: "PORTFOLIO", msg: `Auditing market liquidity float for order cornering...`, type: "system" },
-        { component: "NETWORK", msg: `Surveillance node latency checked: ${(systemMetrics?.latency || 42) + Math.floor(Math.sin(Date.now()/500)*4)}ms.`, type: "system" }
+        { component: "SURVEILLANCE", msg: `Auditing intraday transaction logs. Active alarms: ${alertsCount}.`, type: alertsCount > 0 ? "warn" : "success" },
+        { component: "NETWORK", msg: `Node latency checked: ${(systemMetrics?.latency || 42) + Math.floor(Math.sin(Date.now()/500)*4)}ms.`, type: "system" }
       ];
       
       const randomTele = telemetries[Math.floor(Math.random() * telemetries.length)];
       setLocalLogs(prev => [...prev, randomTele].slice(-25)); // Cap logs to 25 items for performance
-    }, 2000);
+    }, 2500);
 
     return () => clearInterval(interval);
-  }, [symbol, anomalyScore, probability, severity, systemMetrics]);
+  }, [symbol, anomalyScore, probability, severity, systemMetrics, alertsCount, changePercent]);
 
   // Scroll to bottom of terminal container only
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-cyanneon animate-pulse" />
             <h2 className="heading-syne font-extrabold text-xs tracking-widest text-[#00f5ff] uppercase">
-              Live Market Analysis
+              LIVE MARKET TELEMETRY
             </h2>
           </div>
           <span className="text-[8px] px-2.5 py-0.5 rounded font-black uppercase tracking-wider bg-[#00f5ff]/10 text-cyanneon border border-[#00f5ff]/30 animate-pulse">
@@ -77,7 +81,7 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
         </div>
         
         <div className="text-slate-400 font-bold mb-0.5 uppercase text-[8px]">Scan Telemetry status:</div>
-        <div className="text-[11.5px] font-black tracking-wide text-cyanneon uppercase flex items-center gap-1">
+        <div className="text-[11px] font-black tracking-wide text-cyanneon uppercase flex items-center gap-1">
           <Activity className="w-4 h-4 animate-pulse text-cyanneon" />
           <span>ACTIVE - SCANNING FOR MANIPULATION</span>
         </div>
@@ -88,6 +92,7 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
 
       {/* Live Market Analysis score HUD */}
       <div className="flex-shrink-0 grid grid-cols-2 gap-2 mb-4">
+        {/* Anomaly Score */}
         <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded flex flex-col justify-between">
           <div className="text-slate-500 font-bold text-[7.5px] uppercase">Anomaly Score</div>
           <div className="flex items-baseline justify-between mt-1">
@@ -103,6 +108,7 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
           </div>
         </div>
 
+        {/* AI Confidence */}
         <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded flex flex-col justify-between">
           <div className="text-slate-500 font-bold text-[7.5px] uppercase">AI Confidence</div>
           <div className="flex items-baseline justify-between mt-1">
@@ -118,6 +124,40 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
           </div>
         </div>
 
+        {/* Latest Symbol */}
+        <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded">
+          <div className="text-slate-500 font-bold text-[7.5px] uppercase flex items-center gap-1">
+            <TrendingUp className="w-2.5 h-2.5 text-indigo-400" />
+            <span>Latest Symbol</span>
+          </div>
+          <div className="text-[10px] font-black text-white mt-0.5">
+            {symbol}
+          </div>
+        </div>
+
+        {/* Market Trend */}
+        <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded">
+          <div className="text-slate-500 font-bold text-[7.5px] uppercase flex items-center gap-1">
+            <Activity className="w-2.5 h-2.5 text-indigo-400" />
+            <span>Market Trend</span>
+          </div>
+          <div className={`text-[10px] font-black ${trendColor} mt-0.5 uppercase`}>
+            {trend}
+          </div>
+        </div>
+
+        {/* Predicted Price */}
+        <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded">
+          <div className="text-slate-500 font-bold text-[7.5px] uppercase flex items-center gap-1">
+            <TrendingUp className="w-2.5 h-2.5 text-indigo-400" />
+            <span>Predicted Price</span>
+          </div>
+          <div className="text-[10px] font-black text-white mt-0.5">
+            ₹{(predictionData?.predicted_price || stockDetails?.current_price || 0).toFixed(2)}
+          </div>
+        </div>
+
+        {/* Surveillance Latency */}
         <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded">
           <div className="text-slate-500 font-bold text-[7.5px] uppercase flex items-center gap-1">
             <Server className="w-2.5 h-2.5 text-indigo-400" />
@@ -128,12 +168,36 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
           </div>
         </div>
 
+        {/* Feed Protocol */}
         <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded">
           <div className="text-slate-500 font-bold text-[7.5px] uppercase flex items-center gap-1">
             <Clock className="w-2.5 h-2.5 text-indigo-400" />
             <span>Feed Protocol</span>
           </div>
-          <div className="text-[10px] font-black text-slate-200 mt-0.5">Finnhub REST/HTTPS</div>
+          <div className="text-[10px] font-black text-slate-200 mt-0.5">Alpha Vantage API</div>
+        </div>
+      </div>
+
+      {/* Connection & Active Alarms HUD */}
+      <div className="flex-shrink-0 grid grid-cols-2 gap-2 mb-4">
+        {/* API Connection Status */}
+        <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded flex flex-col justify-between">
+          <div className="text-slate-500 font-bold text-[7.5px] uppercase">API Connection</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="w-2 h-2 rounded-full bg-greenok animate-pulse" />
+            <span className="text-[9px] font-black text-greenok uppercase">CONNECTED</span>
+          </div>
+        </div>
+
+        {/* Active Alarms */}
+        <div className="bg-[#05070f]/70 border border-borderblue/60 p-2 rounded flex flex-col justify-between">
+          <div className="text-slate-500 font-bold text-[7.5px] uppercase">Active Alarms</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <ShieldAlert className={`w-3.5 h-3.5 ${alertsCount > 0 ? "text-redalert animate-pulse" : "text-slate-500"}`} />
+            <span className={`text-[9px] font-black ${alertsCount > 0 ? "text-redalert" : "text-slate-400"} uppercase`}>
+              {alertsCount} Active
+            </span>
+          </div>
         </div>
       </div>
 
@@ -157,7 +221,7 @@ export default function LiveController({ symbol, predictionData, systemMetrics }
         {/* Scrollable logs list limited to remaining flex height */}
         <div 
           ref={scrollContainerRef}
-          className="flex-grow overflow-y-auto space-y-1.5 pr-1 font-mono text-[8.5px] scrollbar-thin scrollbar-thumb-borderblue min-h-0"
+          className="flex-grow overflow-y-auto max-h-[260px] h-[260px] space-y-1.5 pr-1 font-mono text-[8.5px] scrollbar-thin scrollbar-thumb-borderblue min-h-0"
         >
           {localLogs.map((log, i) => {
             const isLast = i === localLogs.length - 1;

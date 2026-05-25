@@ -35,8 +35,6 @@ def start_background_simulator():
     thread = threading.Thread(target=run_sim, daemon=True)
     thread.start()
 
-start_background_simulator()
-
 # Initialize FastAPI App
 app = FastAPI(
     title="MarketGuard AI Backend API",
@@ -113,6 +111,34 @@ def reset_demo(db: Session = Depends(get_db)):
         "message": "System database reset and seeded with initial mock data."
     }
 
+@app.post("/api/set-demo-step/{step}")
+def set_demo_step(step: int, db: Session = Depends(get_db)):
+    """
+    Sets the demo step explicitly and executes the step actions.
+    """
+    state = db.query(models.SystemState).filter(models.SystemState.id == 1).first()
+    if not state:
+        state = models.SystemState(id=1, current_demo_step=0)
+        db.add(state)
+        
+    if step < 0 or step > 12:
+        raise HTTPException(status_code=400, detail="Invalid step. Must be between 0 and 12.")
+        
+    state.current_demo_step = step
+    db.commit()
+    
+    execute_demo_step(db, step, state)
+    
+    return {
+        "status": "success",
+        "current_step": step
+    }
+
+@app.on_event("startup")
+def startup_event():
+    start_background_simulator()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

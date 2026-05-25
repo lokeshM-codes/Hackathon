@@ -27,11 +27,6 @@ def tick_market(db: Session):
     if 0 < step <= 12:
         # Execute the specific step actions
         execute_demo_step(db, step, state)
-        
-        # Advance step automatically if it's running
-        if step < 12:
-            state.current_demo_step += 1
-            db.commit()
     else:
         # Normal fluctuation for all stocks
         stocks = db.query(Stock).all()
