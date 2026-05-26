@@ -3,6 +3,28 @@ import * as fallback from './fallbackData';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+const REAL_PRICES = {
+  "AAPL": 185.0,
+  "MSFT": 420.0,
+  "TSLA": 1750.0,
+  "IBM": 185.0,
+  "RELIANCE.BSE": 2450.0,
+  "TCS.BSE": 3850.0,
+  "AMZN": 180.0,
+  "GOOGLE": 3757.0,
+  "NVIDIA": 4408.0,
+  "RELIANCE": 2450.0,
+  "TCS": 3850.0,
+  "INFOSYS": 1435.0,
+  "HDFC_BANK": 1560.0,
+  "HDFCBANK.BSE": 1560.0,
+  "ITC": 425.0,
+  "YES_BANK": 22.0,
+  "ADANI_ENT": 2880.0,
+  "ZOMATO": 84.0,
+  "IRFC_PENNY": 22.0
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000, // Increased timeout to ensure Alpha Vantage API resolves before client aborts
@@ -19,7 +41,7 @@ let clientInterval = null;
 
 const startClientSimulation = () => {
   if (clientInterval) return;
-  
+
   clientInterval = setInterval(() => {
     if (!isOffline) return;
 
@@ -31,7 +53,7 @@ const startClientSimulation = () => {
         s.current_price = parseFloat((s.current_price * (1 + change)).toFixed(2));
         s.change_percent = parseFloat(((s.current_price - s.base_price) / s.base_price * 100).toFixed(2));
         s.volume = Math.max(5000, s.volume + Math.floor(Math.random() * 6000 - 3000));
-        
+
         // Push historical ticks
         if (clientHistory[s.symbol]) {
           clientHistory[s.symbol].push({
@@ -68,28 +90,28 @@ const handleFallback = (endpoint, error, params = {}) => {
     isOffline = true;
     startClientSimulation();
   }
-  
+
   switch (endpoint) {
     case 'stocks':
       return Promise.resolve({ data: clientStocks });
-      
+
     case 'stock-details': {
       const symbol = params.symbol || 'RELIANCE';
       const stock = clientStocks.find(s => s.symbol === symbol) || clientStocks[0];
       const history = clientHistory[symbol] || fallback.FALLBACK_HISTORY[symbol] || [];
       return Promise.resolve({ data: { stock, history } });
     }
-    
+
     case 'alerts':
       return Promise.resolve({ data: clientAlerts });
-      
+
     case 'heatmap': {
       const isLive = params.isLive;
       const targetSymbol = params.symbol || 'YES_BANK';
-      const symbolsList = isLive 
+      const symbolsList = isLive
         ? ["AAPL", "MSFT", "TSLA", "IBM", "RELIANCE.BSE", "TCS.BSE", "AMZN", "GOOGL", "NVDA"]
         : ["RELIANCE", "TCS", "INFOSYS", "HDFC_BANK", "ITC", "YES_BANK", "ADANI_ENT", "ZOMATO", "IRFC_PENNY"];
-        
+
       const data = symbolsList.map(s => {
         let risk = 0.12;
         let change = 0.5;
@@ -121,7 +143,7 @@ const handleFallback = (endpoint, error, params = {}) => {
         return {
           symbol: s,
           company_name: s.includes('.') ? s.replace('.BSE', ' Ltd.') : `${s} Corporation`,
-          current_price: 150.0,
+          current_price: REAL_PRICES[s] || 150.0,
           change_percent: change,
           risk_score: risk,
           volume: 100000
@@ -129,7 +151,7 @@ const handleFallback = (endpoint, error, params = {}) => {
       });
       return Promise.resolve({ data });
     }
-      
+
     case 'sentiment': {
       const symbol = params.symbol || 'RELIANCE';
       const feeds = clientNewsSocial[symbol] || fallback.FALLBACK_NEWS_SOCIAL[symbol] || [];
@@ -143,7 +165,7 @@ const handleFallback = (endpoint, error, params = {}) => {
         }
       });
     }
-      
+
     case 'graph': {
       let g = JSON.parse(JSON.stringify(fallback.FALLBACK_GRAPH));
       const step = params.isLive ? 8 : (clientDemoStep || 0);
@@ -169,7 +191,7 @@ const handleFallback = (endpoint, error, params = {}) => {
       }
       return Promise.resolve({ data: g });
     }
-      
+
     case 'prediction': {
       const symbol = params.symbol || 'RELIANCE';
       if (symbol === "IRFC_PENNY" && clientDemoStep >= 3) {
@@ -197,8 +219,11 @@ const handleFallback = (endpoint, error, params = {}) => {
     }
     case 'live-prediction': {
       const symbol = params.symbol || 'AAPL';
+      const baseP = REAL_PRICES[symbol] || 150.0;
       const stock = clientStocks.find(s => s.symbol === symbol) || {
-        symbol, current_price: 150.0 + Math.random() * 5, change_percent: -2.0 + Math.random() * 4
+        symbol,
+        current_price: parseFloat((baseP + Math.random() * (baseP * 0.03)).toFixed(2)),
+        change_percent: -2.0 + Math.random() * 4
       };
       return Promise.resolve({
         data: {
@@ -222,16 +247,17 @@ const handleFallback = (endpoint, error, params = {}) => {
     case 'live-stock': {
       const now = Date.now();
       const symbol = params.symbol || 'AAPL';
+      const baseP = REAL_PRICES[symbol] || 150.0;
       const stock = clientStocks.find(s => s.symbol === symbol) || {
         symbol,
         company_name: `${symbol} Corporation`,
-        current_price: 150.0 + Math.random() * 5,
+        current_price: parseFloat((baseP + Math.random() * (baseP * 0.03)).toFixed(2)),
         change_percent: -2.0 + Math.random() * 4,
         volume: 1200000 + Math.floor(Math.random() * 500000),
-        high: 155.0,
-        low: 148.0,
-        open: 151.0,
-        previous_close: 149.0
+        high: parseFloat((baseP * 1.03).toFixed(2)),
+        low: parseFloat((baseP * 0.97).toFixed(2)),
+        open: parseFloat((baseP * 1.01).toFixed(2)),
+        previous_close: baseP
       };
       let history = clientHistory[symbol] || fallback.FALLBACK_HISTORY[symbol];
       if (!history || history.length === 0) {
@@ -305,7 +331,7 @@ const handleFallback = (endpoint, error, params = {}) => {
         }
       });
     }
-      
+
     case 'analytics': {
       const a = JSON.parse(JSON.stringify(fallback.FALLBACK_ANALYTICS));
       a.active_alerts = clientAlerts.length;
@@ -314,7 +340,7 @@ const handleFallback = (endpoint, error, params = {}) => {
       a.investor_loss_prevented_inr = clientAlerts.reduce((sum, al) => sum + al.estimated_impact_inr, 0);
       return Promise.resolve({ data: a });
     }
-      
+
     case 'social': {
       const symbol = params.symbol || 'RELIANCE';
       if (symbol === "IRFC_PENNY" && clientDemoStep >= 4) {
@@ -334,7 +360,7 @@ const handleFallback = (endpoint, error, params = {}) => {
       }
       return Promise.resolve({ data: fallback.FALLBACK_SOCIAL_SIGNALS[symbol] || fallback.FALLBACK_SOCIAL_SIGNALS["IRFC_PENNY"] });
     }
-      
+
     case 'trigger-demo':
       clientDemoStep = 1;
       clientAlerts = clientAlerts.filter(al => al.symbol !== "IRFC_PENNY");
@@ -347,7 +373,7 @@ const handleFallback = (endpoint, error, params = {}) => {
         clientNewsSocial = res.newsSocial;
       }
       return Promise.resolve({ data: { status: 'success', current_step: 1 } });
-      
+
     case 'reset-demo':
       clientDemoStep = 0;
       clientStocks = JSON.parse(JSON.stringify(fallback.FALLBACK_STOCKS));
@@ -355,7 +381,7 @@ const handleFallback = (endpoint, error, params = {}) => {
       clientHistory = JSON.parse(JSON.stringify(fallback.FALLBACK_HISTORY));
       clientNewsSocial = JSON.parse(JSON.stringify(fallback.FALLBACK_NEWS_SOCIAL));
       return Promise.resolve({ data: { status: 'success', message: 'Demo reset locally.' } });
-      
+
     case 'set-demo-step': {
       const step = params.step || 0;
       clientDemoStep = step;
@@ -367,53 +393,53 @@ const handleFallback = (endpoint, error, params = {}) => {
       return Promise.resolve({ data: { status: 'success', current_step: step } });
     }
 
-      
+
     default:
       return Promise.reject(new Error(`Endpoint fallback not found: ${endpoint}`));
   }
 };
 
-export const fetchStocks = () => 
+export const fetchStocks = () =>
   api.get('/stocks').then(res => { isOffline = false; return res; }).catch(err => handleFallback('stocks', err));
 
-export const fetchStockDetails = (symbol) => 
+export const fetchStockDetails = (symbol) =>
   api.get(`/stocks/${symbol}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('stock-details', err, { symbol }));
 
-export const fetchAlerts = () => 
+export const fetchAlerts = () =>
   api.get('/alerts').then(res => { isOffline = false; return res; }).catch(err => handleFallback('alerts', err));
 
-export const fetchHeatmap = (symbol = 'YES_BANK', isLive = false) => 
+export const fetchHeatmap = (symbol = 'YES_BANK', isLive = false) =>
   api.get('/heatmap', { params: { symbol, is_live: isLive } }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('heatmap', err, { symbol, isLive }));
 
-export const fetchSentiment = (symbol) => 
+export const fetchSentiment = (symbol) =>
   api.get(`/sentiment/${symbol}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('sentiment', err, { symbol }));
 
-export const fetchGraph = (symbol = 'YES_BANK', isLive = false) => 
+export const fetchGraph = (symbol = 'YES_BANK', isLive = false) =>
   api.get('/graph', { params: { symbol, is_live: isLive } }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('graph', err, { symbol, isLive }));
 
 
-export const fetchPrediction = (symbol) => 
+export const fetchPrediction = (symbol) =>
   api.get(`/prediction/${symbol}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('prediction', err, { symbol }));
 
-export const fetchAnalytics = () => 
+export const fetchAnalytics = () =>
   api.get('/analytics').then(res => { isOffline = false; return res; }).catch(err => handleFallback('analytics', err));
 
-export const fetchSocial = (symbol) => 
+export const fetchSocial = (symbol) =>
   api.get(`/social/${symbol}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('social', err, { symbol }));
 
-export const fetchLivePrediction = (symbol) => 
+export const fetchLivePrediction = (symbol) =>
   api.get(`/live-stock/prediction/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('live-prediction', err, { symbol }));
 
-export const triggerDemo = () => 
+export const triggerDemo = () =>
   api.post('/trigger-demo').then(res => { isOffline = false; return res; }).catch(err => handleFallback('trigger-demo', err));
 
-export const resetDemo = () => 
+export const resetDemo = () =>
   api.post('/reset-demo').then(res => { isOffline = false; return res; }).catch(err => handleFallback('reset-demo', err));
 
 export const setDemoStep = (step) =>
   api.post(`/set-demo-step/${step}`).then(res => { isOffline = false; return res; }).catch(err => handleFallback('set-demo-step', err, { step }));
 
-export const fetchLiveStock = (symbol) => 
+export const fetchLiveStock = (symbol) =>
   api.get(`/live-stock/${symbol}`, { timeout: 10000 }).then(res => { isOffline = false; return res; }).catch(err => handleFallback('live-stock', err, { symbol }));
 
 export const fetchQuote = (symbol) =>
