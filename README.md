@@ -34,7 +34,6 @@ Combining unsupervised anomaly detection, graph-network correlation, and real-ti
 ## 🏗️ Architecture & Component Flow
 
 ### 1. Visual System Architecture
-<<<<<<< HEAD
 ![MarketGuard AI System Architecture](docs/assets/architecture.jpg)
 
 ---
@@ -92,40 +91,8 @@ Here is how the system decisions are evaluated at every tick:
 *   **Is Stock Price Spiking while Public News Sentiment drops heavily?**
     *   👉 **YES** ➔ Triggers a **Sentiment Divergence Mismatch Alert** warning of potential operator manipulation.
     *   👉 **NO** ➔ Sentiment is aligned with price action; no alert is generated.
-=======
-![MarketGuard AI System Architecture](file:///C:/Users/Lokesh%20sri%20surya/.gemini/antigravity-ide/brain/1abf30a4-4187-43b6-a058-ca4acc64499d/marketguard_architecture_1779764605749.png)
 
 ---
-
-### 2. Surveillance Detection Workflow
-
-![MarketGuard AI Detection Workflow Diagram](file:///C:/Users/Lokesh%20sri%20surya/.gemini/antigravity-ide/brain/1abf30a4-4187-43b6-a058-ca4acc64499d/marketguard_workflow_1779765725012.png)
-
-Below is the core automated sequence executed on every new market tick or stock price change:
-
-```mermaid
-flowchart TD
-    A[Market Price/Volume Tick] --> B{Service Online?}
-    B -->|Yes| C[FastAPI Server]
-    B -->|No|  D[Local Proxy / fallbackData.js]
-
-    C & D --> E[Isolation Forest Model]
-    E -->|Analyze Volume Ratio & Volatility| F{Outlier Detected?}
-    F -->|Yes| G[Flag Alert: Info/Warning/Critical]
-    F -->|No| H[Normal Trade Parameters]
-
-    C & D --> I[Random Forest Predictor]
-    I -->|Correlate Social Mention Velocities| J{Pump & Dump Risk > 60%?}
-    J -->|Yes| K[Predict Peak Time Window & Risk Score]
-    J -->|No| L[Monitor Social Feeds]
-
-    G & K --> M[NetworkX Insider Graph]
-    M -->|Trace Trader Centrality & Shell Entities| N[Generate Coordinated Clique Report]
-    
-    N --> O[Explainable AI Diagnostic Logs]
-    O --> P[Flash React Dashboard Alerts]
-```
->>>>>>> 4cd17fd944f78ff2a44394e54786a64048f1a974
 
 ### 3. Core Data Pipelines
 1. **The Ingestion Pipeline**: Market updates are fetched from external APIs (AlphaVantage & Finnhub) or ticked by the background simulator thread (`simulator.py`) and recorded in the SQLite database.
@@ -230,7 +197,6 @@ To view the platform’s real-time interception capabilities, trigger the **Coor
 2.  **Step 2: Volume Surge** — Daily trading volume spikes 4x with no corporate announcements.
 3.  **Step 3: Price Acceleration** — Momentum triggers price growth of +19.1% on 15x normal volume.
 4.  **Step 4: Isolation Forest (Vol)** — Outlier scoring detects volume anomalies (>0.70 score).
-<<<<<<< HEAD
 5.  **Step 5: Isolation Forest (Price)** — Outlier scoring flags a price surge warning (>0.70 score).
 6.  **Step 6: Hype Spreading** — Online forum posts (Twitter/Reddit) trigger increased social alerts.
 7.  **Step 7: Sentiment Mismatch** — Sentiment scores drop to -0.89 while price rises, indicating a divergence mismatch.
@@ -239,15 +205,6 @@ To view the platform’s real-time interception capabilities, trigger the **Coor
 10. **Step 10: Random Forest Classification** — Predictive probability scores cross 90%+ risk.
 11. **Step 11: Window Calculation** — Predictive engine sets a peak estimate window (e.g., 3 mins).
 12. **Step 12: Resolution** — Mitigation actions complete. Protection banner registers **₹4.2 Crore** prevented retail losses.
-=======
-5.  **Step 6: Hype Spreading** — Online forum posts (Twitter/Reddit) trigger increased social alerts.
-6.  **Step 7: Sentiment Mismatch** — Sentiment scores drop to -0.89 while price rises, indicating a divergence mismatch.
-7.  **Step 8: Insider Cluster Analysis** — NetworkX maps a central Mauritian shell broker node loop.
-8.  **Step 9: Explainable AI** — Dashboard parses model weights showing exact contributors.
-9.  **Step 10: Random Forest Classification** — Predictive probability scores cross 90%+ risk.
-10. **Step 11: Window Calculation** — Predictive engine sets a peak estimate window (e.g., 3 mins).
-11. **Step 12: Resolution** — Mitigation actions complete. Protection banner registers **₹4.2 Crore** prevented retail losses.
->>>>>>> 4cd17fd944f78ff2a44394e54786a64048f1a974
 
 *Note: You can click the **Reset Demo** button at any point to restore databases to default baselines.*
 
